@@ -152,4 +152,23 @@ describe("createDirectRoomTracker", () => {
       }),
     ).resolves.toBe(false);
   });
+
+  it("bounds joined-room membership cache size", async () => {
+    const client = createMockClient({ isDm: false });
+    const tracker = createDirectRoomTracker(client);
+
+    for (let i = 0; i <= 1024; i += 1) {
+      await tracker.isDirectMessage({
+        roomId: `!room-${i}:example.org`,
+        senderId: "@alice:example.org",
+      });
+    }
+
+    await tracker.isDirectMessage({
+      roomId: "!room-0:example.org",
+      senderId: "@alice:example.org",
+    });
+
+    expect(client.getJoinedRoomMembers).toHaveBeenCalledTimes(1026);
+  });
 });

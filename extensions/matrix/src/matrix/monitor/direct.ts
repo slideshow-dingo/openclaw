@@ -11,6 +11,17 @@ type DirectRoomTrackerOptions = {
 };
 
 const DM_CACHE_TTL_MS = 30_000;
+const MAX_TRACKED_DM_ROOMS = 1024;
+
+function rememberBounded<T>(map: Map<string, T>, key: string, value: T): void {
+  map.set(key, value);
+  if (map.size > MAX_TRACKED_DM_ROOMS) {
+    const oldest = map.keys().next().value;
+    if (typeof oldest === "string") {
+      map.delete(oldest);
+    }
+  }
+}
 
 export function createDirectRoomTracker(client: MatrixClient, opts: DirectRoomTrackerOptions = {}) {
   const log = opts.log ?? (() => {});
@@ -55,7 +66,7 @@ export function createDirectRoomTracker(client: MatrixClient, opts: DirectRoomTr
         .filter((entry): entry is string => typeof entry === "string")
         .map((entry) => entry.trim())
         .filter(Boolean);
-      joinedMembersCache.set(roomId, { members: normalized, ts: now });
+      rememberBounded(joinedMembersCache, roomId, { members: normalized, ts: now });
       return normalized;
     } catch (err) {
       log(`matrix: dm member lookup failed room=${roomId} (${String(err)})`);
