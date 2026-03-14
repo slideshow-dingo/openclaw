@@ -435,8 +435,17 @@ describe("matrix CLI verification commands", () => {
   });
 
   it("does not bootstrap verification when updating an already configured account", async () => {
-    resolveMatrixAccountMock.mockReturnValue({
-      configured: true,
+    matrixRuntimeLoadConfigMock.mockReturnValue({
+      channels: {
+        matrix: {
+          accounts: {
+            ops: {
+              enabled: true,
+              homeserver: "https://matrix.example.org",
+            },
+          },
+        },
+      },
     });
     resolveMatrixAccountConfigMock.mockReturnValue({
       encryption: true,

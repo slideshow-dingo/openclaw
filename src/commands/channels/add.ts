@@ -11,7 +11,11 @@ import { deleteTelegramUpdateOffset } from "../../telegram/update-offset-store.j
 import { createClackPrompter } from "../../wizard/clack-prompter.js";
 import { applyAgentBindings, describeBinding } from "../agents.bindings.js";
 import { buildAgentSummaries } from "../agents.config.js";
-import { setupChannels } from "../onboard-channels.js";
+import {
+  createChannelOnboardingPostWriteHookCollector,
+  runCollectedChannelOnboardingPostWriteHooks,
+  setupChannels,
+} from "../onboard-channels.js";
 import type { ChannelChoice } from "../onboard-types.js";
 import {
   ensureOnboardingPluginInstalled,
@@ -67,12 +71,16 @@ export async function channelsAddCommand(
   const useWizard = shouldUseWizard(params);
   if (useWizard) {
     const prompter = createClackPrompter();
+    const postWriteHooks = createChannelOnboardingPostWriteHookCollector();
     let selection: ChannelChoice[] = [];
     const accountIds: Partial<Record<ChannelChoice, string>> = {};
     await prompter.intro("Channel setup");
     let nextConfig = await setupChannels(cfg, runtime, prompter, {
       allowDisable: false,
       allowSignalInstall: true,
+      onPostWriteHook: (hook) => {
+        postWriteHooks.collect(hook);
+      },
       promptAccountIds: true,
       onSelection: (value) => {
         selection = value;
@@ -177,6 +185,11 @@ export async function channelsAddCommand(
     }
 
     await writeConfigFile(nextConfig);
+    await runCollectedChannelOnboardingPostWriteHooks({
+      hooks: postWriteHooks.drain(),
+      cfg: nextConfig,
+      runtime,
+    });
     await prompter.outro("Channels updated.");
     return;
   }
@@ -308,4 +321,24 @@ export async function channelsAddCommand(
 
   await writeConfigFile(nextConfig);
   runtime.log(`Added ${channelLabel(channel)} account "${accountId}".`);
+  if (plugin.setup.afterAccountConfigWritten) {
+    await runCollectedChannelOnboardingPostWriteHooks({
+      hooks: [
+        {
+          channel,
+          accountId,
+          run: async ({ cfg: writtenCfg, runtime: hookRuntime }) =>
+            await plugin.setup.afterAccountConfigWritten?.({
+              previousCfg: cfg,
+              cfg: writtenCfg,
+              accountId,
+              input,
+              runtime: hookRuntime,
+            }),
+        },
+      ],
+      cfg: nextConfig,
+      runtime,
+    });
+  }
 }

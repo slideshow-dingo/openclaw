@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   waitForGatewayReachable: vi.fn(),
   resolveControlUiLinks: vi.fn(),
   summarizeExistingConfig: vi.fn(),
+  noteChannelStatus: vi.fn(),
+  setupChannels: vi.fn(),
 }));
 
 vi.mock("@clack/prompts", () => ({
@@ -91,8 +93,10 @@ vi.mock("./onboard-skills.js", () => ({
   setupSkills: vi.fn(),
 }));
 
-vi.mock("./onboard-channels.js", () => ({
-  setupChannels: vi.fn(),
+vi.mock("./onboard-channels.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./onboard-channels.js")>()),
+  noteChannelStatus: mocks.noteChannelStatus,
+  setupChannels: mocks.setupChannels,
 }));
 
 import { WizardCancelledError } from "../wizard/prompts.js";
@@ -100,6 +104,8 @@ import { runConfigureWizard } from "./configure.wizard.js";
 
 describe("runConfigureWizard", () => {
   it("persists gateway.mode=local when only the run mode is selected", async () => {
+    mocks.noteChannelStatus.mockReset();
+    mocks.setupChannels.mockReset();
     mocks.readConfigFileSnapshot.mockResolvedValue({
       exists: false,
       valid: true,
@@ -110,6 +116,7 @@ describe("runConfigureWizard", () => {
     mocks.probeGatewayReachable.mockResolvedValue({ ok: false });
     mocks.resolveControlUiLinks.mockReturnValue({ wsUrl: "ws://127.0.0.1:18789" });
     mocks.summarizeExistingConfig.mockReturnValue("");
+    mocks.ensureControlUiAssetsBuilt.mockResolvedValue({ ok: true });
     mocks.createClackPrompter.mockReturnValue({});
 
     const selectQueue = ["local", "__continue"];
@@ -136,6 +143,8 @@ describe("runConfigureWizard", () => {
   });
 
   it("exits with code 1 when configure wizard is cancelled", async () => {
+    mocks.noteChannelStatus.mockReset();
+    mocks.setupChannels.mockReset();
     const runtime = {
       log: vi.fn(),
       error: vi.fn(),
@@ -157,5 +166,76 @@ describe("runConfigureWizard", () => {
     await runConfigureWizard({ command: "configure" }, runtime);
 
     expect(runtime.exit).toHaveBeenCalledWith(1);
+  });
+
+  it("runs channel post-write hooks after persisting channel changes", async () => {
+    const hookRun = vi.fn().mockResolvedValue(undefined);
+    const runtime = {
+      log: vi.fn(),
+      error: vi.fn(),
+      exit: vi.fn(),
+    };
+
+    mocks.noteChannelStatus.mockReset();
+    mocks.noteChannelStatus.mockResolvedValue(undefined);
+    mocks.setupChannels.mockReset();
+    mocks.setupChannels.mockImplementation(async (cfg, _runtime, _prompter, options) => {
+      options?.onPostWriteHook?.({
+        channel: "telegram",
+        accountId: "acct-1",
+        run: hookRun,
+      });
+      return {
+        ...cfg,
+        channels: {
+          ...cfg.channels,
+          telegram: { botToken: "new-token" },
+        },
+      };
+    });
+    mocks.readConfigFileSnapshot.mockResolvedValue({
+      exists: false,
+      valid: true,
+      config: {},
+      issues: [],
+    });
+    mocks.resolveGatewayPort.mockReturnValue(18789);
+    mocks.probeGatewayReachable.mockResolvedValue({ ok: false });
+    mocks.resolveControlUiLinks.mockReturnValue({ wsUrl: "ws://127.0.0.1:18789" });
+    mocks.summarizeExistingConfig.mockReturnValue("");
+    mocks.ensureControlUiAssetsBuilt.mockResolvedValue({ ok: true });
+    mocks.createClackPrompter.mockReturnValue({});
+    const selectQueue = ["local", "configure"];
+    mocks.clackSelect.mockImplementation(async () => selectQueue.shift());
+    mocks.clackIntro.mockResolvedValue(undefined);
+    mocks.clackOutro.mockResolvedValue(undefined);
+    mocks.clackText.mockResolvedValue("");
+    mocks.clackConfirm.mockResolvedValue(false);
+
+    await runConfigureWizard({ command: "configure", sections: ["channels"] }, runtime);
+
+    expect(mocks.writeConfigFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        gateway: expect.objectContaining({ mode: "local" }),
+        channels: {
+          telegram: {
+            botToken: "new-token",
+          },
+        },
+      }),
+    );
+    expect(hookRun).toHaveBeenCalledWith({
+      cfg: expect.objectContaining({
+        channels: {
+          telegram: {
+            botToken: "new-token",
+          },
+        },
+      }),
+      runtime,
+    });
+    expect(mocks.writeConfigFile.mock.invocationCallOrder[0]).toBeLessThan(
+      hookRun.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    );
   });
 });

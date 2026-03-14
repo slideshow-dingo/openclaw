@@ -3,6 +3,8 @@ import { baseConfigSnapshot, createTestRuntime } from "./test-runtime-config-hel
 
 const readConfigFileSnapshotMock = vi.hoisted(() => vi.fn());
 const writeConfigFileMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const setupChannelsMock = vi.hoisted(() => vi.fn());
+const ensureWorkspaceAndSessionsMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 const wizardMocks = vi.hoisted(() => ({
   createClackPrompter: vi.fn(),
@@ -18,6 +20,16 @@ vi.mock("../wizard/clack-prompter.js", () => ({
   createClackPrompter: wizardMocks.createClackPrompter,
 }));
 
+vi.mock("./onboard-channels.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./onboard-channels.js")>()),
+  setupChannels: setupChannelsMock,
+}));
+
+vi.mock("./onboard-helpers.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./onboard-helpers.js")>()),
+  ensureWorkspaceAndSessions: ensureWorkspaceAndSessionsMock,
+}));
+
 import { WizardCancelledError } from "../wizard/prompts.js";
 import { agentsAddCommand } from "./agents.js";
 
@@ -27,6 +39,8 @@ describe("agents add command", () => {
   beforeEach(() => {
     readConfigFileSnapshotMock.mockClear();
     writeConfigFileMock.mockClear();
+    setupChannelsMock.mockReset();
+    ensureWorkspaceAndSessionsMock.mockClear();
     wizardMocks.createClackPrompter.mockClear();
     runtime.log.mockClear();
     runtime.error.mockClear();
@@ -69,5 +83,62 @@ describe("agents add command", () => {
 
     expect(runtime.exit).toHaveBeenCalledWith(1);
     expect(writeConfigFileMock).not.toHaveBeenCalled();
+  });
+
+  it("runs collected channel post-write hooks after saving the agent config", async () => {
+    const hookRun = vi.fn().mockResolvedValue(undefined);
+    readConfigFileSnapshotMock.mockResolvedValue({ ...baseConfigSnapshot });
+    setupChannelsMock.mockImplementation(async (cfg, _runtime, _prompter, options) => {
+      options?.onPostWriteHook?.({
+        channel: "telegram",
+        accountId: "acct-1",
+        run: hookRun,
+      });
+      return {
+        ...cfg,
+        channels: {
+          ...cfg.channels,
+          telegram: {
+            botToken: "new-token",
+          },
+        },
+      };
+    });
+    wizardMocks.createClackPrompter.mockReturnValue({
+      intro: vi.fn().mockResolvedValue(undefined),
+      text: vi.fn().mockResolvedValue("/tmp/work"),
+      confirm: vi.fn().mockResolvedValue(false),
+      note: vi.fn().mockResolvedValue(undefined),
+      outro: vi.fn().mockResolvedValue(undefined),
+    });
+
+    await agentsAddCommand({ name: "Work" }, runtime);
+
+    expect(writeConfigFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agents: expect.objectContaining({
+          list: expect.arrayContaining([
+            expect.objectContaining({
+              id: "work",
+              name: "Work",
+              workspace: "/tmp/work",
+            }),
+          ]),
+        }),
+      }),
+    );
+    expect(hookRun).toHaveBeenCalledWith({
+      cfg: expect.objectContaining({
+        channels: {
+          telegram: {
+            botToken: "new-token",
+          },
+        },
+      }),
+      runtime,
+    });
+    expect(writeConfigFileMock.mock.invocationCallOrder[0]).toBeLessThan(
+      hookRun.mock.invocationCallOrder[0] ?? Number.POSITIVE_INFINITY,
+    );
   });
 });

@@ -33,6 +33,7 @@ import {
 } from "./matrix/config-update.js";
 import { ensureMatrixSdkInstalled, isMatrixSdkAvailable } from "./matrix/deps.js";
 import { resolveMatrixTargets } from "./resolve-targets.js";
+import { runMatrixSetupBootstrapAfterConfigWrite } from "./setup-bootstrap.js";
 import type { CoreConfig } from "./types.js";
 
 const channel = "matrix" as const;
@@ -574,6 +575,14 @@ export const matrixOnboardingAdapter: ChannelOnboardingAdapter = {
       accountOverrides,
       shouldPromptAccountIds,
       intent: action === "add-account" ? "add-account" : "update",
+    });
+  },
+  afterConfigWritten: async ({ previousCfg, cfg, accountId, runtime }) => {
+    await runMatrixSetupBootstrapAfterConfigWrite({
+      previousCfg: previousCfg as CoreConfig,
+      cfg: cfg as CoreConfig,
+      accountId,
+      runtime,
     });
   },
   dmPolicy,

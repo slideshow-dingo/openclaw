@@ -13,11 +13,16 @@ import type { ChannelOnboardingAdapter } from "./onboarding/types.js";
 type ChannelOnboardingAdapterPatch = Partial<
   Pick<
     ChannelOnboardingAdapter,
-    "configure" | "configureInteractive" | "configureWhenConfigured" | "getStatus"
+    | "afterConfigWritten"
+    | "configure"
+    | "configureInteractive"
+    | "configureWhenConfigured"
+    | "getStatus"
   >
 >;
 
 type PatchedOnboardingAdapterFields = {
+  afterConfigWritten?: ChannelOnboardingAdapter["afterConfigWritten"];
   configure?: ChannelOnboardingAdapter["configure"];
   configureInteractive?: ChannelOnboardingAdapter["configureInteractive"];
   configureWhenConfigured?: ChannelOnboardingAdapter["configureWhenConfigured"];
@@ -51,6 +56,10 @@ export function patchChannelOnboardingAdapter(
     previous.getStatus = adapter.getStatus;
     adapter.getStatus = patch.getStatus ?? adapter.getStatus;
   }
+  if (Object.prototype.hasOwnProperty.call(patch, "afterConfigWritten")) {
+    previous.afterConfigWritten = adapter.afterConfigWritten;
+    adapter.afterConfigWritten = patch.afterConfigWritten;
+  }
   if (Object.prototype.hasOwnProperty.call(patch, "configure")) {
     previous.configure = adapter.configure;
     adapter.configure = patch.configure ?? adapter.configure;
@@ -67,6 +76,9 @@ export function patchChannelOnboardingAdapter(
   return () => {
     if (Object.prototype.hasOwnProperty.call(patch, "getStatus")) {
       adapter.getStatus = previous.getStatus!;
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, "afterConfigWritten")) {
+      adapter.afterConfigWritten = previous.afterConfigWritten;
     }
     if (Object.prototype.hasOwnProperty.call(patch, "configure")) {
       adapter.configure = previous.configure!;

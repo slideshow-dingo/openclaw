@@ -29,6 +29,7 @@ import {
 } from "./matrix/direct-management.js";
 import { applyMatrixProfileUpdate, type MatrixProfileUpdateResult } from "./profile-update.js";
 import { getMatrixRuntime } from "./runtime.js";
+import { maybeBootstrapNewEncryptedMatrixAccount } from "./setup-bootstrap.js";
 import type { CoreConfig } from "./types.js";
 
 let matrixCliExitScheduled = false;
@@ -193,8 +194,6 @@ async function addMatrixAccount(params: {
       accountId: params.account,
       input,
     }) ?? normalizeAccountId(params.account?.trim() || params.name?.trim());
-  const existingAccount = resolveMatrixAccount({ cfg, accountId });
-
   const validationError = setup.validateInput?.({
     cfg,
     accountId,
@@ -218,27 +217,12 @@ async function addMatrixAccount(params: {
     recoveryKeyCreatedAt: null,
     backupVersion: null,
   };
-  if (existingAccount.configured !== true && accountConfig.encryption === true) {
-    try {
-      const bootstrap = await bootstrapMatrixVerification({ accountId });
-      verificationBootstrap = {
-        attempted: true,
-        success: bootstrap.success === true,
-        recoveryKeyCreatedAt: bootstrap.verification.recoveryKeyCreatedAt,
-        backupVersion: bootstrap.verification.backupVersion,
-        ...(bootstrap.success
-          ? {}
-          : { error: bootstrap.error ?? "Matrix verification bootstrap failed" }),
-      };
-    } catch (err) {
-      verificationBootstrap = {
-        attempted: true,
-        success: false,
-        recoveryKeyCreatedAt: null,
-        backupVersion: null,
-        error: toErrorMessage(err),
-      };
-    }
+  if (accountConfig.encryption === true) {
+    verificationBootstrap = await maybeBootstrapNewEncryptedMatrixAccount({
+      previousCfg: cfg,
+      cfg: updated,
+      accountId,
+    });
   }
 
   const desiredDisplayName = input.name?.trim();

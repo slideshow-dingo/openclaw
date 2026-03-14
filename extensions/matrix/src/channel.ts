@@ -50,6 +50,7 @@ import {
 import { matrixOnboardingAdapter } from "./onboarding.js";
 import { matrixOutbound } from "./outbound.js";
 import { resolveMatrixTargets } from "./resolve-targets.js";
+import { runMatrixSetupBootstrapAfterConfigWrite } from "./setup-bootstrap.js";
 import type { CoreConfig } from "./types.js";
 
 // Mutex for serializing account startup (workaround for concurrent dynamic import race condition)
@@ -359,6 +360,14 @@ export const matrixPlugin: ChannelPlugin<ResolvedMatrixAccount> = {
         deviceName: input.deviceName?.trim(),
         avatarUrl: resolveAvatarInput(input),
         initialSyncLimit: input.initialSyncLimit,
+      });
+    },
+    afterAccountConfigWritten: async ({ previousCfg, cfg, accountId, runtime }) => {
+      await runMatrixSetupBootstrapAfterConfigWrite({
+        previousCfg: previousCfg as CoreConfig,
+        cfg: cfg as CoreConfig,
+        accountId,
+        runtime,
       });
     },
   },
