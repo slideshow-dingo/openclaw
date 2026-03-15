@@ -10,12 +10,12 @@ import {
   resolvePluginSdkAliasFile,
   resolvePluginSdkScopedAliasMap,
 } from "../extension-host/loader-compat.js";
+import { finalizeExtensionHostRegistryLoad } from "../extension-host/loader-finalize.js";
 import { processExtensionHostPluginCandidate } from "../extension-host/loader-flow.js";
 import {
   buildExtensionHostProvenanceIndex,
   compareExtensionHostDuplicateCandidateOrder,
   pushExtensionHostDiagnostics,
-  warnAboutUntrackedLoadedExtensions,
   warnWhenExtensionAllowlistIsOpen,
 } from "../extension-host/loader-policy.js";
 import type { GatewayRequestHandler } from "../gateway/server-methods/types.js";
@@ -971,23 +971,16 @@ export function loadOpenClawPlugins(options: PluginLoadOptions = {}): PluginRegi
     memorySlotMatched ||= processed.memorySlotMatched;
   }
 
-  if (typeof memorySlot === "string" && !memorySlotMatched) {
-    registry.diagnostics.push({
-      level: "warn",
-      message: `memory slot plugin not found or not marked as memory: ${memorySlot}`,
-    });
-  }
-
-  warnAboutUntrackedLoadedExtensions({
+  return finalizeExtensionHostRegistryLoad({
     registry,
+    memorySlot,
+    memorySlotMatched,
     provenance,
     logger,
     env,
+    cacheEnabled,
+    cacheKey,
+    setCachedRegistry: setCachedPluginRegistry,
+    activateRegistry: activateExtensionHostRegistry,
   });
-
-  if (cacheEnabled) {
-    setCachedPluginRegistry(cacheKey, registry);
-  }
-  activateExtensionHostRegistry(registry, cacheKey);
-  return registry;
 }
