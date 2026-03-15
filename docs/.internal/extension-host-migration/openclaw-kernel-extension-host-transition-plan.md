@@ -1004,6 +1004,13 @@ Decision:
 
 In this model, a channel is not a special plugin subtype. It is an adapter contribution plus related optional descriptors.
 
+Terminology clarification:
+
+- the extension package is the installable unit
+- a contribution is a normalized runtime or host surface emitted by that package
+- transport-specific runtime behavior belongs in the package's `adapter.runtime` contribution
+- the kernel remains generic and should not own product-specific behavior for any one extension or channel
+
 An adapter runtime contribution should include only transport behavior:
 
 - normalize ingress events

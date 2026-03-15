@@ -641,6 +641,12 @@ Ownership rule:
 - extensions may own interaction logic and channel-specific rendering details
 - the host owns namespace registration, dedupe, callback routing, approval persistence, and binding policy
 
+Terminology clarification:
+
+- plugin-specific behavior lives in the extension package
+- transport-specific runtime behavior lives in that extension's `adapter.runtime` contribution
+- the kernel only consumes generic contracts and must not learn Telegram-, Discord-, or plugin-specific behavior directly
+
 ### `capability.rpc`
 
 Represents internal callable methods that are not agent tools.
