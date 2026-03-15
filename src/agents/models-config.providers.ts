@@ -48,16 +48,6 @@ type SecretDefaults = {
   exec?: string;
 };
 
-const MOONSHOT_NATIVE_BASE_URLS = new Set([
-  "https://api.moonshot.ai/v1",
-  "https://api.moonshot.cn/v1",
-]);
-const MODELSTUDIO_NATIVE_BASE_URLS = new Set([
-  "https://coding-intl.dashscope.aliyuncs.com/v1",
-  "https://coding.dashscope.aliyuncs.com/v1",
-]);
-
-const ENV_VAR_NAME_RE = /^[A-Z_][A-Z0-9_]*$/;
 
 function normalizeApiKeyConfig(value: string): string {
   const trimmed = value.trim();
@@ -515,7 +505,6 @@ export function normalizeProviders(params: {
         params.secretRefManagedProviders?.add(normalizedKey);
       }
     }
-
 
     // If a provider defines models, pi's ModelRegistry requires apiKey to be set.
     // Fill it from the environment or auth profiles when possible.

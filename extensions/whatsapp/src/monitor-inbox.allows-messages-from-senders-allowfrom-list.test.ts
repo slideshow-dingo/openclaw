@@ -256,6 +256,9 @@ describe("web monitor inbox", () => {
     const { onMessage, listener, sock } = await openInboxMonitor();
     const staleTs = Math.floor(Date.now() / 1000) - 300;
 
+    // Use a timestamp 2 minutes in the past to ensure it's outside the 60s grace period
+    const oldTimestamp = nowSeconds(-120_000);
+
     const upsert = {
       type: "append",
       messages: [
@@ -266,7 +269,7 @@ describe("web monitor inbox", () => {
             remoteJid: "999@s.whatsapp.net",
           },
           message: { conversation: "old message" },
-          messageTimestamp: staleTs,
+          messageTimestamp: oldTimestamp,
           pushName: "History Sender",
         },
       ],
@@ -285,7 +288,7 @@ describe("web monitor inbox", () => {
       },
     ]);
 
-    // Verify it WAS NOT passed to onMessage
+    // Verify it WAS NOT passed to onMessage (old append messages are skipped)
     expect(onMessage).not.toHaveBeenCalled();
 
     await listener.close();
