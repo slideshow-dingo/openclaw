@@ -1,5 +1,4 @@
 import type { ConnectionOptions } from "node:tls";
-import { Gaxios } from "gaxios";
 import type { Dispatcher } from "undici";
 import { Agent as UndiciAgent, ProxyAgent } from "undici";
 
@@ -27,10 +26,14 @@ type TlsAgentLike = {
 };
 
 type GaxiosPrototype = {
-  _defaultAdapter: (this: Gaxios, config: GaxiosFetchRequestInit) => Promise<unknown>;
+  _defaultAdapter: (this: unknown, config: GaxiosFetchRequestInit) => Promise<unknown>;
 };
 
-let installState: "not-installed" | "installed" = "not-installed";
+type GaxiosConstructor = {
+  prototype: GaxiosPrototype;
+};
+
+let installState: "not-installed" | "shimmed" | "installed" = "not-installed";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -161,6 +164,45 @@ function buildDispatcher(init: GaxiosFetchRequestInit, url: URL): Dispatcher | u
   return undefined;
 }
 
+function isModuleNotFoundError(err: unknown): err is NodeJS.ErrnoException {
+  return (
+    Boolean(err) && typeof err === "object" && "code" in err && err.code === "ERR_MODULE_NOT_FOUND"
+  );
+}
+
+function isDirectGaxiosImportMiss(err: unknown): boolean {
+  if (!isModuleNotFoundError(err)) {
+    return false;
+  }
+  return typeof err.message === "string" && err.message.includes("Cannot find package 'gaxios'");
+}
+
+async function loadGaxiosConstructor(): Promise<GaxiosConstructor | null> {
+  try {
+    const mod = await import("gaxios");
+    const candidate = mod.Gaxios;
+    if (typeof candidate !== "function" || !("prototype" in candidate)) {
+      throw new Error("gaxios: missing Gaxios export");
+    }
+    return candidate as GaxiosConstructor;
+  } catch (err) {
+    if (isDirectGaxiosImportMiss(err)) {
+      return null;
+    }
+    throw err;
+  }
+}
+
+function installLegacyWindowFetchShim(): void {
+  if (
+    typeof globalThis.fetch !== "function" ||
+    typeof (globalThis as Record<string, unknown>).window !== "undefined"
+  ) {
+    return;
+  }
+  (globalThis as Record<string, unknown>).window = { fetch: globalThis.fetch };
+}
+
 export function createGaxiosCompatFetch(baseFetch: typeof fetch = globalThis.fetch): typeof fetch {
   return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const gaxiosInit = (init ?? {}) as GaxiosFetchRequestInit;
@@ -186,12 +228,19 @@ export function createGaxiosCompatFetch(baseFetch: typeof fetch = globalThis.fet
   };
 }
 
-export function installGaxiosFetchCompat(): void {
-  if (installState === "installed" || typeof globalThis.fetch !== "function") {
+export async function installGaxiosFetchCompat(): Promise<void> {
+  if (installState !== "not-installed" || typeof globalThis.fetch !== "function") {
     return;
   }
 
-  const prototype = Gaxios.prototype as unknown as GaxiosPrototype;
+  const Gaxios = await loadGaxiosConstructor();
+  if (!Gaxios) {
+    installLegacyWindowFetchShim();
+    installState = "shimmed";
+    return;
+  }
+
+  const prototype = Gaxios.prototype;
   const originalDefaultAdapter = prototype._defaultAdapter;
   const compatFetch = createGaxiosCompatFetch();
 

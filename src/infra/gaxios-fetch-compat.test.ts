@@ -21,11 +21,31 @@ describe("gaxios fetch compat", () => {
     vi.doMock("node-fetch", () => {
       throw new Error("node-fetch should not load");
     });
+    vi.doMock("gaxios", () => {
+      class MockGaxios {
+        async request(config: RequestInit & { responseType?: string; url: string }) {
+          const response = await MockGaxios.prototype._defaultAdapter.call(this, config);
+          return {
+            ...(response as object),
+            data: await (response as Response).text(),
+          };
+        }
+      }
+
+      MockGaxios.prototype._defaultAdapter = async (
+        config: RequestInit & { fetchImplementation?: typeof fetch; url: string },
+      ) => {
+        const fetchImplementation = config.fetchImplementation ?? fetch;
+        return await fetchImplementation(config.url, config);
+      };
+
+      return { Gaxios: MockGaxios };
+    });
 
     const { installGaxiosFetchCompat } = await import("./gaxios-fetch-compat.js");
     const { Gaxios } = await import("gaxios");
 
-    installGaxiosFetchCompat();
+    await installGaxiosFetchCompat();
 
     const res = await new Gaxios().request({
       responseType: "text",
@@ -35,6 +55,30 @@ describe("gaxios fetch compat", () => {
     expect(res.data).toBe("ok");
     expect(fetchMock).toHaveBeenCalledOnce();
     expect("window" in globalThis).toBe(false);
+  });
+
+  it("falls back to a legacy window fetch shim when gaxios is unavailable", async () => {
+    const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
+    Reflect.deleteProperty(globalThis as object, "window");
+    vi.doMock("gaxios", () => ({
+      get Gaxios() {
+        throw Object.assign(new Error("Cannot find package 'gaxios'"), {
+          code: "ERR_MODULE_NOT_FOUND",
+        });
+      },
+    }));
+    const { installGaxiosFetchCompat } = await import("./gaxios-fetch-compat.js");
+
+    try {
+      await expect(installGaxiosFetchCompat()).resolves.toBeUndefined();
+      expect((globalThis as { window?: { fetch?: typeof fetch } }).window?.fetch).toBe(fetch);
+      await expect(installGaxiosFetchCompat()).resolves.toBeUndefined();
+    } finally {
+      Reflect.deleteProperty(globalThis as object, "window");
+      if (originalWindowDescriptor) {
+        Object.defineProperty(globalThis, "window", originalWindowDescriptor);
+      }
+    }
   });
 
   it("translates proxy agents into undici dispatchers for native fetch", async () => {

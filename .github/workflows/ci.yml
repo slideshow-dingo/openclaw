@@ -319,6 +319,12 @@ jobs:
       - name: Build dist
         run: pnpm build
 
+      - name: Smoke test CLI launcher help
+        run: node openclaw.mjs --help
+
+      - name: Smoke test CLI launcher status json
+        run: node openclaw.mjs status --json --timeout 1
+
       - name: Check CLI startup memory
         run: pnpm test:startup:memory
 
