@@ -517,10 +517,16 @@ export function normalizeProviders(params: {
     // Reverse-lookup: if apiKey looks like a resolved secret value (not an env
     // var name), check whether it matches the canonical env var for this provider.
     // This prevents resolveConfigEnvVars()-resolved secrets from being persisted
-    // to models.json as plaintext. Only run this when sourceProviders is not
-    // available (legacy path without source refs).
+    // to models.json as plaintext. Skip this only when sourceProviders already
+    // records the env var reference for this provider.
     // (Fixes #38757)
-    if (!params.sourceProviders) {
+    const sourceProvider = params.sourceProviders?.[normalizedKey];
+    const hasSourceRef =
+      sourceProvider &&
+      typeof sourceProvider.apiKey === "object" &&
+      sourceProvider.apiKey !== null &&
+      "source" in sourceProvider.apiKey;
+    if (!hasSourceRef) {
       const currentApiKey = normalizedProvider.apiKey;
       if (
         typeof currentApiKey === "string" &&

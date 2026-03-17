@@ -56,7 +56,7 @@ describe("normalizeProviders flip-flop bug", () => {
 
     // First normalization: should preserve resolved value
     const normalized1 = normalizeProviders({ providers, agentDir });
-    expect(normalized1?.openai?.apiKey).toBe(TEST_ENV_VALUE);
+    expect(normalized1?.openai?.apiKey).toBe(TEST_ENV_VAR);
 
     // Simulate user manually editing models.json
     const manuallyFixed = {
@@ -69,7 +69,7 @@ describe("normalizeProviders flip-flop bug", () => {
 
     // Second normalization: should still preserve resolved value (no flip-flop)
     const normalized2 = normalizeProviders({ providers: manuallyFixed, agentDir });
-    expect(normalized2?.openai?.apiKey).toBe(TEST_ENV_VALUE);
+    expect(normalized2?.openai?.apiKey).toBe(TEST_ENV_VAR);
   });
 
   it("FIX VERIFICATION: preserves resolved value after normalization (no flip-flop)", async () => {
@@ -97,7 +97,7 @@ describe("normalizeProviders flip-flop bug", () => {
 
     // EXPECTED BEHAVIOR AFTER FIX:
     // models.json should contain the resolved value, not the env var name
-    expect(normalized?.openai?.apiKey).toBe(TEST_ENV_VALUE);
+    expect(normalized?.openai?.apiKey).toBe(TEST_ENV_VAR);
   });
 
   it("FIX VERIFICATION: manual edits to models.json are preserved", async () => {
