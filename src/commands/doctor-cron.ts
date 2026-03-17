@@ -124,6 +124,10 @@ function migrateLegacyNotifyFallback(params: {
       );
       continue;
     }
+
+    warnings.push(
+      `Cron job "${jobName}" uses legacy notify fallback alongside delivery mode "${mode}". Migrate it manually to avoid changing delivery behavior.`,
+    );
   }
 
   return { changed, warnings };
