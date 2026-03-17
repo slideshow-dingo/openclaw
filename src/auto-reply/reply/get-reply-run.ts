@@ -40,7 +40,7 @@ import type { buildCommandContext } from "./commands.js";
 import type { InlineDirectives } from "./directive-handling.js";
 import { buildGroupChatContext, buildGroupIntro } from "./groups.js";
 import { buildInboundMetaSystemPrompt, buildInboundUserContextPrefix } from "./inbound-meta.js";
-import type { createModelSelectionState } from "./model-selection.js";
+import { modelKey, type createModelSelectionState } from "./model-selection.js";
 import { resolveOriginMessageProvider } from "./origin-routing.js";
 import { resolveQueueSettings } from "./queue.js";
 import { routeReply } from "./route-reply.js";
@@ -60,8 +60,8 @@ function buildResetSessionNoticeText(params: {
   defaultProvider: string;
   defaultModel: string;
 }): string {
-  const modelLabel = `${params.provider}/${params.model}`;
-  const defaultLabel = `${params.defaultProvider}/${params.defaultModel}`;
+  const modelLabel = modelKey(params.provider, params.model);
+  const defaultLabel = modelKey(params.defaultProvider, params.defaultModel);
   return modelLabel === defaultLabel
     ? `✅ New session started · model: ${modelLabel}`
     : `✅ New session started · model: ${modelLabel} (default: ${defaultLabel})`;

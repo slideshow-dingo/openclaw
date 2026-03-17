@@ -131,6 +131,13 @@ describe("model-selection", () => {
     it("keeps canonical OpenRouter native ids without duplicating the provider", () => {
       expect(modelKey("openrouter", "openrouter/hunter-alpha")).toBe("openrouter/hunter-alpha");
     });
+
+    it("prevents double-prefixing in session startup messages", () => {
+      expect(modelKey("openrouter", "openrouter/hunter-alpha")).toBe("openrouter/hunter-alpha");
+      expect(modelKey("openrouter", "anthropic/claude-sonnet-4-5")).toBe(
+        "openrouter/anthropic/claude-sonnet-4-5",
+      );
+    });
   });
 
   describe("parseModelRef", () => {
