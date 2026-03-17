@@ -526,7 +526,7 @@ export function normalizeProviders(params: {
       typeof sourceProvider.apiKey === "object" &&
       sourceProvider.apiKey !== null &&
       "source" in sourceProvider.apiKey;
-    if (!hasSourceRef) {
+    if (params.sourceProviders && !hasSourceRef) {
       const currentApiKey = normalizedProvider.apiKey;
       if (
         typeof currentApiKey === "string" &&

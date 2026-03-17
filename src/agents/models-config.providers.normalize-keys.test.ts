@@ -105,7 +105,7 @@ describe("normalizeProviders", () => {
       };
       const normalized = normalizeProviders({ providers, agentDir });
       // Resolved values are preserved (no flip-flop)
-      expect(normalized?.openai?.apiKey).toBe("OPENAI_API_KEY");
+      expect(normalized?.openai?.apiKey).toBe("openai-test-env-value-not-a-real-key");
     } finally {
       if (original === undefined) {
         delete process.env.OPENAI_API_KEY;
