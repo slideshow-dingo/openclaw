@@ -24,13 +24,19 @@ describe("normalizeProviders flip-flop bug", () => {
   const TEST_ENV_VAR = "OPENAI_API_KEY";
   const TEST_ENV_VALUE = "openai-test-env-value-not-a-real-key";
 
+  let originalEnvValue: string | undefined;
   beforeEach(async () => {
     agentDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-agent-"));
+    originalEnvValue = process.env[TEST_ENV_VAR];
     process.env[TEST_ENV_VAR] = TEST_ENV_VALUE;
   });
 
   afterEach(async () => {
-    delete process.env[TEST_ENV_VAR];
+    if (originalEnvValue === undefined) {
+      delete process.env[TEST_ENV_VAR];
+    } else {
+      process.env[TEST_ENV_VAR] = originalEnvValue;
+    }
     await fs.rm(agentDir, { recursive: true, force: true });
   });
 
