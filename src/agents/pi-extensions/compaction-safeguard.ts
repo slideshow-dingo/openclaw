@@ -839,7 +839,6 @@ export default function compactionSafeguardExtension(api: ExtensionAPI): void {
         model.api,
         createConfiguredOllamaStreamFn({
           model,
-          providerBaseUrl: model.baseUrl,
         }),
       );
     }
