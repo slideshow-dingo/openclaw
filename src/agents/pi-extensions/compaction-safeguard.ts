@@ -24,6 +24,8 @@ import {
   summarizeInStages,
 } from "../compaction.js";
 import { collectTextContentBlocks } from "../content-blocks.js";
+import { ensureCustomApiRegistered } from "../custom-api-registry.js";
+import { createConfiguredOllamaStreamFn } from "../ollama-stream.js";
 import { wrapUntrustedPromptDataBlock } from "../sanitize-for-prompt.js";
 import { repairToolUseResultPairing } from "../session-transcript-repair.js";
 import { extractToolCallsFromAssistant, extractToolResultId } from "../tool-call-id.js";
@@ -829,6 +831,19 @@ export default function compactionSafeguardExtension(api: ExtensionAPI): void {
     };
     const identifierPolicy = runtime?.identifierPolicy ?? "strict";
     const model = ctx.model ?? runtime?.model;
+
+    // Register Ollama API provider when using Ollama models in compaction safeguard.
+    // This prevents "No API provider registered for api: ollama" errors during summarization.
+    if (model?.api === "ollama") {
+      ensureCustomApiRegistered(
+        model.api,
+        createConfiguredOllamaStreamFn({
+          model,
+          providerBaseUrl: model.baseUrl,
+        }),
+      );
+    }
+
     if (!model) {
       // Log warning once per session when both models are missing (diagnostic for future issues).
       // Use a WeakSet to track which session managers have already logged the warning.
