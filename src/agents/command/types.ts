@@ -82,8 +82,6 @@ export type AgentCommandOpts = {
   lane?: string;
   runId?: string;
   extraSystemPrompt?: string;
-  /** Lightweight bootstrap context to prevent deadlock at high context sizes. */
-  lightContext?: boolean;
   internalEvents?: AgentInternalEvent[];
   inputProvenance?: InputProvenance;
   /** Per-call stream param overrides (best-effort). */
