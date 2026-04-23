@@ -669,6 +669,7 @@ export async function spawnSubagentDirect(
         extraSystemPrompt: childSystemPrompt,
         thinking: thinkingOverride,
         timeout: runTimeoutSeconds,
+        lightContext: true, // Use lightweight bootstrap context to prevent deadlock at high context sizes (#45892)
         label: label || undefined,
         ...publicSpawnedMetadata,
       },

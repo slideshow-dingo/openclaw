@@ -96,6 +96,7 @@ export const AgentParamsSchema = Type.Object(
     bestEffortDeliver: Type.Optional(Type.Boolean()),
     lane: Type.Optional(Type.String()),
     extraSystemPrompt: Type.Optional(Type.String()),
+    lightContext: Type.Optional(Type.Boolean()), // For lightweight bootstrap context to prevent deadlock at high context sizes
     internalEvents: Type.Optional(Type.Array(AgentInternalEventSchema)),
     inputProvenance: Type.Optional(InputProvenanceSchema),
     idempotencyKey: NonEmptyString,
