@@ -523,6 +523,7 @@ function runAgentAttempt(params: {
     lane: params.opts.lane,
     abortSignal: params.opts.abortSignal,
     extraSystemPrompt: params.opts.extraSystemPrompt,
+    bootstrapContextMode: params.opts.lightContext ? "lightweight" : undefined,
     inputProvenance: params.opts.inputProvenance,
     streamParams: params.opts.streamParams,
     agentDir: params.agentDir,

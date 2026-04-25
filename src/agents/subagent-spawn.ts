@@ -669,6 +669,7 @@ export async function spawnSubagentDirect(
         extraSystemPrompt: childSystemPrompt,
         thinking: thinkingOverride,
         timeout: runTimeoutSeconds,
+        lightContext: true, // Always lightweight: prevents WRITE-lock deadlock at high context sizes
         label: label || undefined,
         ...publicSpawnedMetadata,
       },
